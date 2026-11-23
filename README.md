@@ -6,18 +6,25 @@ Aucune dépendance, aucun build : HTML + CSS + JavaScript vanilla. Fonctionne ho
 
 ## Démarrage
 
-### En ligne (GitHub Pages)
+### Utiliser l'application en local sur Windows (recommandé)
 
-Une fois activé (Settings → Pages → branche `main`), l'application est disponible à l'adresse du site publié par le dépôt.
+Aucune installation de logiciel, aucune connexion Internet requise après le premier téléchargement.
 
-### En local
+1. **Téléchargez le dossier de l'application** : sur GitHub, bouton vert **Code → Download ZIP** ([lien direct du ZIP](https://github.com/maximecarrard15-source/Bibliotheque/archive/refs/heads/main.zip)), puis extrayez-le où vous voulez (ex. `Documents\Bibliotheque`).
+2. **Double-cliquez sur `Lancer-la-bibliotheque.bat`.**
+   - Si Windows affiche un avertissement PowerShell, choisissez « Exécuter » / « Exécuter quand même » (le script est local, il ne fait que servir les fichiers de ce dossier sur `127.0.0.1`, invisible des autres machines).
+   - L'application s'ouvre automatiquement dans une **fenêtre Microsoft Edge dédiée**, sans barre d'adresse.
+3. Laissez la petite fenêtre noire (le serveur local) ouverte pendant l'utilisation ; fermez-la pour arrêter.
+4. **Pour la retrouver comme un vrai logiciel** : dans la fenêtre de l'application, cliquez sur **« 📲 Installer »** (ou dans Edge : menu ⋯ → *Applications* → *Installer ce site en tant qu'application*). Un raccourci « Ma Bibliothèque » est créé dans le **menu Démarrer** ; l'app utilise alors son propre cache et reste pleinement fonctionnelle hors ligne.
 
-Ouvrir `index.html` dans un navigateur, ou servir le dossier :
+⚠️ **Important — vos données** : la collection est enregistrée dans le navigateur, par adresse. Lancez donc toujours l'application **par le même moyen** (le fichier `.bat` ou l'app installée depuis elle), pas en double-cliquant directement sur `index.html` dans l'Explorateur — sinon vous verriez une bibliothèque vide (origine `file://` différente de l'origine locale).
 
-```bash
-python3 -m http.server 8000
-# puis http://localhost:8000
-```
+Pour désinstaller : supprimez le dossier, et éventuellement menu Démarrer → clic droit « Ma Bibliothèque » → Désinstaller.
+
+### Autres façons de la lancer (avancé)
+
+- N'importe quel serveur statique : `python3 -m http.server 8000` puis `http://localhost:8000`.
+- Déploiement Vercel (usage sur plusieurs appareils) : import du dépôt, **Framework Preset = Other**, **Build Command** vide, **Output Directory** `.`.
 
 ## Fonctionnalités
 
@@ -25,7 +32,7 @@ python3 -m http.server 8000
 - **Collection globale de livres** : titre (obligatoire), auteur, description, genre, type, statut, emplacement. Modification et suppression à tout moment.
 - **Barre de recherche globale** (en-tête, toujours visible) : titre, auteur, genre, type et nom de bibliothèque. Suggestions instantanées + page de résultats détaillés (statut, bibliothèque, ligne/colonne).
 - **Sortir un livre** : un clic depuis sa fiche → statut « Sorti », l'emplacement d'origine reste mémorisé pour un rangement facile.
-- **Ranger un livre** : choix de la bibliothèque → représentation graphique → clic sur une case libre (cases occupées désactivées, position actuelle surlignée). Statut recalisé et synchronisation immédiate partout.
+- **Ranger un livre** : choix de la bibliothèque → représentation graphique → clic sur une case (libre ou déjà occupée, position actuelle surlignée). Statut recalisé et synchronisation immédiate partout.
 - **Déplacer un livre** : même flux depuis une fiche ; l'ancien emplacement est automatiquement libéré.
 - **Case vide cliquable** dans la vue bibliothèque : liste des livres sortis à ranger directement dans cette case.
 - **Tableau de bord** : total, livres rangés, livres sortis, cases occupées/disponibles, aperçu de chaque bibliothèque, section « Livres sortis à ranger », dernières activités.
@@ -45,7 +52,12 @@ js/ui.js                Modales, toasts, dialogues de confirmation
 js/grid.js              Moteur de rendu visuel des étagères (réutilisable partout)
 js/modals.js            Fiches livre, formulaires, flux Ranger/Déplacer en 2 étapes
 js/views-*.js           Vues : tableau de bord, bibliothèques, collection, recherche
-js/app.js               Routeur SPA + barre de recherche globale
+js/app.js               Routeur SPA + barre de recherche + installation PWA
+manifest.webmanifest    Manifeste d'application installable (PWA)
+sw.js                   Service worker : cache hors ligne + installabilité
+icons/                  Icônes de l'application (192, 512, maskable, favicon)
+Lancer-la-bibliotheque.bat   Lanceur Windows double-clic
+windows/serveur-local.ps1    Mini-serveur HTTP local (PowerShell, sans install)
 ```
 
 ### Modèle de données (`localStorage`, clé `bibliotheque-app:v1`)

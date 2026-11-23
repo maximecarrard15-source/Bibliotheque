@@ -124,6 +124,51 @@
     });
   }
 
+  /* ---------- Installation (PWA) ---------- */
+
+  let deferredInstall = null;
+  const STANDALONE = (function () {
+    if (typeof window.matchMedia !== 'function') return false;
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: minimal-ui)').matches
+      || window.navigator.standalone === true;
+  })();
+
+  function wireInstall() {
+    const btn = document.getElementById('install-btn');
+    if (!btn || STANDALONE) return;
+    btn.addEventListener('click', async () => {
+      if (!deferredInstall) return;
+      deferredInstall.prompt();
+      const choice = await deferredInstall.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        App.UI.toast('Application installée — retrouvez « Ma Bibliothèque » dans le menu Démarrer.');
+      }
+      deferredInstall = null;
+      btn.hidden = true;
+    });
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    const btn = document.getElementById('install-btn');
+    if (btn && !STANDALONE) btn.hidden = false;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null;
+    const btn = document.getElementById('install-btn');
+    if (btn) btn.hidden = true;
+  });
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+    navigator.serviceWorker.register('sw.js').catch((e) => console.error('Service worker :', e));
+  }
+
   /* ---------- Init ---------- */
 
   let booted = false;
@@ -131,6 +176,8 @@
     if (booted) return;
     booted = true;
     wireSearch();
+    wireInstall();
+    registerServiceWorker();
     render();
   }
 
