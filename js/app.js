@@ -163,6 +163,12 @@
     if (btn) btn.hidden = true;
   });
 
+  function wireBackup() {
+    const btn = document.getElementById('backup-btn');
+    if (!btn) return;
+    btn.addEventListener('click', () => App.Modals.backupCenter());
+  }
+
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
@@ -177,6 +183,7 @@
     booted = true;
     wireSearch();
     wireInstall();
+    wireBackup();
     registerServiceWorker();
     render();
   }

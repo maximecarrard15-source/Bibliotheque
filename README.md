@@ -14,8 +14,9 @@ Aucune installation de logiciel, aucune connexion Internet requise après le pre
 2. **Double-cliquez sur `Lancer-la-bibliotheque.bat`.**
    - Si Windows affiche un avertissement PowerShell, choisissez « Exécuter » / « Exécuter quand même » (le script est local, il ne fait que servir les fichiers de ce dossier sur `127.0.0.1`, invisible des autres machines).
    - L'application s'ouvre automatiquement dans une **fenêtre Microsoft Edge dédiée**, sans barre d'adresse.
+   - Un **raccourci « Ma Bibliothèque » avec l'icône de l'application** (les livres sur l'étagère) est créé automatiquement sur le **Bureau** et dans le **menu Démarrer** : utilisez-le aux lancements suivants.
 3. Laissez la petite fenêtre noire (le serveur local) ouverte pendant l'utilisation ; fermez-la pour arrêter.
-4. **Pour la retrouver comme un vrai logiciel** : dans la fenêtre de l'application, cliquez sur **« 📲 Installer »** (ou dans Edge : menu ⋯ → *Applications* → *Installer ce site en tant qu'application*). Un raccourci « Ma Bibliothèque » est créé dans le **menu Démarrer** ; l'app utilise alors son propre cache et reste pleinement fonctionnelle hors ligne.
+4. **Bonus — installation complète (recommandé)** : dans la fenêtre de l'application, cliquez sur **« 📲 Installer »** (ou dans Edge : menu ⋯ → *Applications* → *Installer ce site en tant qu'application*). L'app utilise alors son propre cache et reste pleinement fonctionnelle **hors ligne**, même serveur fermé.
 
 ⚠️ **Important — vos données** : la collection est enregistrée dans le navigateur, par adresse. Lancez donc toujours l'application **par le même moyen** (le fichier `.bat` ou l'app installée depuis elle), pas en double-cliquant directement sur `index.html` dans l'Explorateur — sinon vous verriez une bibliothèque vide (origine `file://` différente de l'origine locale).
 
@@ -37,6 +38,8 @@ Pour désinstaller : supprimez le dossier, et éventuellement menu Démarrer →
 - **Case vide cliquable** dans la vue bibliothèque : liste des livres sortis à ranger directement dans cette case.
 - **Tableau de bord** : total, livres rangés, livres sortis, cases occupées/disponibles, aperçu de chaque bibliothèque, section « Livres sortis à ranger », dernières activités.
 - **Collection** en vue grille ou liste, filtres (genre, type, statut), tri, filtre texte.
+- **Genres et types personnalisés** : créez vos propres genres et types (bouton « ⚙ Gérer mes genres et types » dans le formulaire de livre) ; une valeur saisie sur un livre s'ajoute automatiquement à vos listes ; suppression protégée tant que des livres l'utilisent.
+- **Sauvegarde manuelle** : bouton « 💾 Sauvegarde » dans l'en-tête → exporte toute la collection (bibliothèques + livres + listes personnalisées) dans un fichier JSON daté, et restaure-la à volonté sur ce PC ou un autre.
 - **Empilement** : une même case peut accueillir autant de livres que vous voulez (badge « +N » sur la case, menu détaillé au clic). Mais un livre ne se trouve physiquement qu'à un seul emplacement à la fois ; les statistiques comptent les cases occupées (≥ 1 livre) et libres (0 livre).
 - Interface responsive (ordinateur, tablette, téléphone), animations discrètes, aucun rechargement de page (SPA à routage par ancre).
 
@@ -77,7 +80,9 @@ windows/serveur-local.ps1    Mini-serveur HTTP local (PowerShell, sans install)
       "row": 1, "col": 2,
       "createdAt": "…", "updatedAt": "…"
     }
-  ]
+  ],
+  "genres": ["Fantasy", "Mes genres personnalisés…"],
+  "types": ["Roman", "Mes types personnalisés…"]
 }
 ```
 

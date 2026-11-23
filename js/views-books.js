@@ -32,8 +32,8 @@
       type: 'search', class: 'filter-text', placeholder: 'Filtrer par titre ou auteur…', value: uiState.text,
       oninput: U.debounce(() => { uiState.text = textIn.value; renderList(); }, 150),
     });
-    const genreSel = selectControl('Genre', Sref.GENRES, uiState.genre, (v) => { uiState.genre = v; renderList(); });
-    const typeSel = selectControl('Type', Sref.TYPES, uiState.type, (v) => { uiState.type = v; renderList(); });
+    const genreSel = selectControl('Genre', Sref.listGenres(), uiState.genre, (v) => { uiState.genre = v; renderList(); });
+    const typeSel = selectControl('Type', Sref.listTypes(), uiState.type, (v) => { uiState.type = v; renderList(); });
     const statusSel = selectControl('Statut', ['Dans la bibliothèque', 'Sorti'], uiState.status, (v) => { uiState.status = v; renderList(); });
     const sortSel = U.el('select', { 'aria-label': 'Trier' }, [
       U.el('option', { value: 'title' }, 'Trier : Titre A→Z'),

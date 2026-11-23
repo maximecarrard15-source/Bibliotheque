@@ -9,11 +9,11 @@
   const MAX_DIM = 12;
 
   App.Store = (function () {
-    const GENRES = [
+    const DEFAULT_GENRES = [
       'Fantasy', 'Policier', 'Science-fiction', 'Histoire', 'Romance',
       'Aventure', 'Jeunesse', 'Documentaire', 'Essai', 'Autre'
     ];
-    const TYPES = [
+    const DEFAULT_TYPES = [
       'Roman', 'BD', 'Manga', 'Documentaire', 'Essai',
       'Biographie', 'Nouvelle', 'Poésie', 'Autre'
     ];
@@ -35,16 +35,37 @@
     function load() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { version: 1, libraries: [], books: [] };
+        if (!raw) return normalize(null);
         return normalize(JSON.parse(raw));
       } catch (e) {
         console.error('Impossible de lire les données sauvegardées :', e);
-        return { version: 1, libraries: [], books: [] };
+        return normalize(null);
       }
     }
 
+    function dedupeTagList(arr, fallback) {
+      if (!Array.isArray(arr)) return fallback.slice();
+      const seen = new Set();
+      const out = [];
+      for (const item of arr) {
+        const t = String(item || '').trim();
+        if (!t) continue;
+        const key = t.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(t);
+      }
+      return out.length ? out : fallback.slice();
+    }
+
     function normalize(data) {
-      const s = { version: 1, libraries: [], books: [] };
+      const s = {
+        version: 1,
+        libraries: [],
+        books: [],
+        genres: dedupeTagList(data ? data.genres : null, DEFAULT_GENRES),
+        types: dedupeTagList(data ? data.types : null, DEFAULT_TYPES),
+      };
       if (data && Array.isArray(data.libraries)) {
         s.libraries = data.libraries.filter((l) => l && l.id).map((l) => ({
           id: String(l.id),
@@ -106,6 +127,64 @@
 
     function getBook(id) {
       return state.books.find((b) => b.id === id) || null;
+    }
+
+    function listGenres() {
+      return state.genres.slice().sort((a, b) => a.localeCompare(b, 'fr'));
+    }
+
+    function listTypes() {
+      return state.types.slice().sort((a, b) => a.localeCompare(b, 'fr'));
+    }
+
+    function registerTag(list, tag) {
+      const t = String(tag || '').trim();
+      if (!t) return;
+      if (list.some((x) => x.toLowerCase() === t.toLowerCase())) return;
+      list.push(t);
+    }
+
+    function addGenre(name) {
+      const t = String(name || '').trim();
+      if (!t) return { ok: false, error: 'Veuillez saisir un nom de genre.' };
+      if (state.genres.some((g) => g.toLowerCase() === t.toLowerCase())) return { ok: true, added: false };
+      state.genres.push(t);
+      save();
+      return { ok: true, added: true };
+    }
+
+    function addType(name) {
+      const t = String(name || '').trim();
+      if (!t) return { ok: false, error: 'Veuillez saisir un nom de type.' };
+      if (state.types.some((g) => g.toLowerCase() === t.toLowerCase())) return { ok: true, added: false };
+      state.types.push(t);
+      save();
+      return { ok: true, added: true };
+    }
+
+    function tagUsageCount(kind, name) {
+      const t = String(name || '').trim().toLowerCase();
+      return state.books.filter((b) => String(b[kind] || '').trim().toLowerCase() === t).length;
+    }
+
+    function removeGenre(name) {
+      const used = tagUsageCount('genre', name);
+      if (used > 0) {
+        return { ok: false, error: U.plural(used, 'livre', 'livres') + ' utilise(nt) ce genre. Modifiez-le(s) d\'abord.' };
+      }
+      state.genres = state.genres.filter((g) => g !== name);
+      save();
+      return { ok: true };
+    }
+
+    function removeType(name) {
+      const used = tagUsageCount('type', name);
+      if (used > 0) {
+        return { ok: false, error: U.plural(used, 'livre', 'livres') + ' utilise(nt) ce type. Modifiez-le(s) d\'abord.' };
+      }
+      state.types = state.types.filter((g) => g !== name);
+      save();
+      return { ok: true };
     }
 
     function listBooks(filter) {
@@ -266,6 +345,8 @@
     function addBook(input) {
       const { errors, value } = validateBook(input);
       if (Object.keys(errors).length) return { ok: false, errors };
+      registerTag(state.genres, value.genre);
+      registerTag(state.types, value.type);
       const book = Object.assign(value, {
         id: uid(),
         status: 'out',
@@ -285,6 +366,8 @@
       if (!book) return { ok: false, errors: {} };
       const { errors, value } = validateBook(Object.assign({}, book, patch));
       if (Object.keys(errors).length) return { ok: false, errors };
+      registerTag(state.genres, value.genre);
+      registerTag(state.types, value.type);
       Object.assign(book, value, { updatedAt: nowISO() });
       save();
       return { ok: true, book };
@@ -330,6 +413,47 @@
       return shelveBook(id, libraryId, row, col);
     }
 
+    function exportData() {
+      return JSON.stringify(state, null, 2);
+    }
+
+    function dataCounts() {
+      return { libraries: state.libraries.length, books: state.books.length };
+    }
+
+    function importProbe(jsonText) {
+      let parsed;
+      try {
+        parsed = JSON.parse(String(jsonText));
+      } catch (e) {
+        return { ok: false, error: 'Fichier illisible : JSON invalide.' };
+      }
+      if (!parsed || typeof parsed !== 'object'
+        || (!Array.isArray(parsed.libraries) && !Array.isArray(parsed.books))) {
+        return { ok: false, error: 'Ce fichier ne ressemble pas à une sauvegarde de l\'application.' };
+      }
+      const incoming = normalize(parsed);
+      return { ok: true, counts: { libraries: incoming.libraries.length, books: incoming.books.length } };
+    }
+
+    function importData(jsonText) {
+      let parsed;
+      try {
+        parsed = JSON.parse(String(jsonText));
+      } catch (e) {
+        return { ok: false, error: 'Fichier illisible : JSON invalide.' };
+      }
+      if (!parsed || typeof parsed !== 'object'
+        || (!Array.isArray(parsed.libraries) && !Array.isArray(parsed.books))) {
+        return { ok: false, error: 'Ce fichier ne ressemble pas à une sauvegarde de l\'application.' };
+      }
+      const incoming = normalize(parsed);
+      const counts = { libraries: incoming.libraries.length, books: incoming.books.length };
+      state = incoming;
+      save();
+      return { ok: true, counts };
+    }
+
     function seedDemo() {
       if (state.libraries.length || state.books.length) return { ok: false };
       const chambre = addLibrary({ name: 'Bibliothèque de la chambre', rows: 5, cols: 4, theme: 'walnut' });
@@ -362,8 +486,8 @@
     save();
 
     return {
-      GENRES,
-      TYPES,
+      DEFAULT_GENRES,
+      DEFAULT_TYPES,
       THEMES,
       MIN_DIM,
       MAX_DIM,
@@ -372,6 +496,13 @@
       getLibrary,
       getBook,
       listBooks,
+      listGenres,
+      listTypes,
+      addGenre,
+      addType,
+      removeGenre,
+      removeType,
+      tagUsageCount,
       booksInLibrary,
       booksAt,
       isSlotFree,
@@ -391,6 +522,10 @@
       takeOutBook,
       shelveBook,
       moveBook,
+      exportData,
+      importProbe,
+      importData,
+      dataCounts,
       seedDemo,
     };
   })();

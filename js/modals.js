@@ -181,9 +181,9 @@
       const typeIn = U.el('input', { type: 'text', name: 'type', list: 'datalist-types', maxlength: '40', placeholder: 'Choisir ou saisir…', value: data.type });
 
       const dlG = U.el('datalist', { id: 'datalist-genres' });
-      S().GENRES.forEach((g) => dlG.append(U.el('option', { value: g })));
+      S().listGenres().forEach((g) => dlG.append(U.el('option', { value: g })));
       const dlT = U.el('datalist', { id: 'datalist-types' });
-      S().TYPES.forEach((t) => dlT.append(U.el('option', { value: t })));
+      S().listTypes().forEach((t) => dlT.append(U.el('option', { value: t })));
 
       const form = U.el('form', { class: 'modal-panel form-panel' }, [
         U.el('h3', null, isEdit ? 'Modifier le livre' : 'Ajouter un livre'),
@@ -197,6 +197,9 @@
         isEdit
           ? U.el('p', { class: 'field-hint form-note' }, 'Le statut et l\'emplacement se gèrent depuis la fiche du livre (Sortir / Ranger / Déplacer).')
           : U.el('p', { class: 'field-hint form-note' }, 'Après l\'enregistrement, vous serez invité à choisir l\'emplacement du livre en cliquant sur une case.'),
+        U.el('div', { class: 'modal-actions manage-tags-row' }, [
+          U.el('button', { type: 'button', class: 'btn ghost small', onclick: () => taxonomyManager() }, '⚙ Gérer mes genres et types'),
+        ]),
         actionsRow([
           U.el('button', { type: 'button', class: 'btn ghost', onclick: () => close() }, 'Annuler'),
           U.el('button', { type: 'submit', class: 'btn primary' }, isEdit ? 'Enregistrer' : 'Ajouter le livre'),
@@ -501,6 +504,170 @@
       close.c = UI.openModal(panel, { label: 'Case ' + U.lineCol(row, col) });
     }
 
-    return { libraryForm, bookForm, bookCard, placeBook, slotMenu, statusBadge, chip };
+    /* ---------- Gestionnaire des genres et types ---------- */
+
+    function taxonomyManager() {
+      const Sref = S();
+      const panel = U.el('div', { class: 'modal-panel form-panel' });
+      UI.openModal(panel, { label: 'Genres et types de livres' });
+      renderPanel();
+
+      function renderPanel() {
+        panel.innerHTML = '';
+        panel.append(
+          U.el('h3', null, '⚙ Mes genres et types'),
+          U.el('p', { class: 'field-hint' },
+            'Ces listes alimentent les suggestions des formulaires et les filtres de la collection. '
+            + 'Saisir un nouveau genre ou type sur un livre l\'ajoute aussi automatiquement ici.'),
+          U.el('div', { class: 'taxonomy-cols' }, [
+            taxColumn('Genres', 'genre', Sref.listGenres()),
+            taxColumn('Types de livre', 'type', Sref.listTypes()),
+          ]),
+          actionsRow([U.el('button', { class: 'btn ghost', type: 'button', onclick: () => UI.closeModal() }, 'Fermer')]),
+        );
+      }
+
+      function taxColumn(label, kind, items) {
+        const listEl = U.el('div', { class: 'taxonomy-list' });
+        items.forEach((name) => {
+          const used = Sref.tagUsageCount(kind, name);
+          listEl.append(U.el('span', { class: 'taxonomy-chip' + (used ? ' used' : '') }, [
+            name,
+            U.el('button', {
+              type: 'button',
+              class: 'taxonomy-remove',
+              title: used ? 'Utilisé par ' + U.plural(used, 'livre', 'livres') + ' — suppression refusée' : 'Supprimer « ' + name + ' »',
+              'aria-label': 'Supprimer ' + name,
+              onclick: () => {
+                const res = kind === 'genre' ? Sref.removeGenre(name) : Sref.removeType(name);
+                if (res.ok) renderPanel();
+                else UI.toast(res.error, 'error');
+              },
+            }, '✕'),
+          ]));
+        });
+
+        const inputEl = U.el('input', { type: 'text', placeholder: 'Nouveau ' + label.toLowerCase() + '…', maxlength: '40', 'aria-label': label });
+        const addBtn = U.el('button', { type: 'button', class: 'btn ghost small' }, '+ Ajouter');
+        function doAdd() {
+          const res = kind === 'genre' ? Sref.addGenre(inputEl.value) : Sref.addType(inputEl.value);
+          if (res.ok) {
+            inputEl.value = '';
+            renderPanel();
+          } else {
+            UI.toast(res.error, 'error');
+          }
+        }
+        addBtn.addEventListener('click', doAdd);
+        inputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            doAdd();
+          }
+        });
+
+        return U.el('div', { class: 'field' }, [
+          U.el('span', { class: 'field-label' }, label),
+          listEl,
+          U.el('div', { class: 'taxonomy-add' }, [inputEl, addBtn]),
+        ]);
+      }
+    }
+
+    /* ---------- Sauvegarde : export / import ---------- */
+
+    function downloadFile(text, filename) {
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = U.el('a', { href: url, download: filename });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    function backupCenter() {
+      const Sref = S();
+      const panel = U.el('div', { class: 'modal-panel form-panel' });
+      UI.openModal(panel, { label: 'Sauvegarde des données' });
+      renderPanel();
+
+      function renderPanel() {
+        panel.innerHTML = '';
+        const counts = Sref.dataCounts();
+        panel.append(
+          U.el('h3', null, '💾 Sauvegarde de vos données'),
+          U.el('p', { class: 'field-hint' },
+            'Collection actuelle : ' + U.plural(counts.libraries, 'bibliothèque', 'bibliothèques') + ' et ' + U.plural(counts.books, 'livre', 'livres')
+            + '. Vos données restent enregistrées automatiquement ; ce fichier est une copie de sécurité manuelle.'),
+          U.el('div', { class: 'modal-actions backup-actions' }, [
+            U.el('button', {
+              class: 'btn primary', type: 'button',
+              onclick: () => {
+                const d = new Date();
+                const stamp = d.getFullYear() + '-'
+                  + String(d.getMonth() + 1).padStart(2, '0') + '-'
+                  + String(d.getDate()).padStart(2, '0');
+                downloadFile(Sref.exportData(), 'sauvegarde-bibliotheque-' + stamp + '.json');
+                UI.toast('Sauvegarde téléchargée : sauvegarde-bibliotheque-' + stamp + '.json');
+              },
+            }, '📤 Exporter ma bibliothèque'),
+            U.el('button', { class: 'btn ghost', type: 'button', onclick: () => chooseImportFile() }, '📥 Importer une sauvegarde'),
+          ]),
+          U.el('p', { class: 'field-hint form-note' },
+            'Conseil : faites un export avant chaque mise à jour de l\'application, et conservez le fichier avec vos documents (clé USB, cloud…). L\'import remplace intégralement la collection actuelle par celle du fichier choisi.'),
+          actionsRow([U.el('button', { class: 'btn ghost', type: 'button', onclick: () => UI.closeModal() }, 'Fermer')]),
+        );
+      }
+
+      function chooseImportFile() {
+        const input = U.el('input', {
+          type: 'file',
+          accept: '.json,application/json',
+          style: 'display:none',
+        });
+        input.addEventListener('change', () => {
+          const file = input.files && input.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => confirmImport(String(reader.result), file.name);
+          reader.onerror = () => UI.toast('Lecture du fichier impossible.', 'error');
+          reader.readAsText(file);
+        });
+        document.body.append(input);
+        input.click();
+        setTimeout(() => input.remove(), 60000);
+      }
+
+      function confirmImport(jsonText, filename) {
+        const S2 = S();
+        let counts;
+        const probe = S2.importProbe(jsonText);
+        if (!probe.ok) {
+          UI.toast(probe.error, 'error');
+          return;
+        }
+        counts = probe.counts;
+        const current = S2.dataCounts();
+        UI.confirm({
+          title: 'Importer « ' + filename + ' » ?',
+          message: 'Ce fichier contient ' + U.plural(counts.libraries, 'bibliothèque', 'bibliothèques') + ' et ' + U.plural(counts.books, 'livre', 'livres') + '. '
+            + 'Il remplacera intégralement la collection actuelle (' + U.plural(current.books, 'livre', 'livres') + '). Continuer ?',
+          confirmLabel: 'Importer',
+          danger: false,
+        }).then((ok) => {
+          if (!ok) return;
+          const res = S2.importData(jsonText);
+          if (res.ok) {
+            UI.closeModal();
+            UI.toast('Sauvegarde importée : ' + U.plural(res.counts.libraries, 'bibliothèque', 'bibliothèques') + ' et ' + U.plural(res.counts.books, 'livre', 'livres') + ' restaurés.');
+          } else {
+            UI.toast(res.error || 'Import impossible.', 'error');
+          }
+        });
+      }
+    }
+
+    return { libraryForm, bookForm, bookCard, placeBook, slotMenu, taxonomyManager, backupCenter, statusBadge, chip };
   })();
 })();

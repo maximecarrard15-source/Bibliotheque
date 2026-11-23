@@ -38,6 +38,13 @@ try {
 
 $appUrl = "http://127.0.0.1:$Port/index.html"
 
+$launcherPath = Join-Path $root "Lancer-la-bibliotheque.bat"
+if (Test-Path $launcherPath) {
+    try {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "creer-raccourci.ps1") -LauncherPath $launcherPath
+    } catch {}
+}
+
 try {
     Start-Process "msedge.exe" -ArgumentList "--app=$appUrl"
 } catch {
@@ -49,6 +56,9 @@ Write-Host "=================================================="
 Write-Host "  BIBLIOTHEQUE - serveur local demarre"
 Write-Host "--------------------------------------------------"
 Write-Host "  Adresse : $appUrl"
+Write-Host ""
+Write-Host "  Raccourci 'Ma Bibliotheque' (icone livres) cree sur le"
+Write-Host "  Bureau et dans le menu Demarrer ; utilisez-le aux prochains lancements."
 Write-Host ""
 Write-Host "  Laissez cette fenetre ouverte pendant l'utilisation."
 Write-Host "  Pour arreter : fermez cette fenetre (ou Ctrl+C)."
