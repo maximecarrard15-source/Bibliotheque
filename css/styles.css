@@ -496,6 +496,42 @@ small { color: var(--text-soft); }
   box-shadow: 0 0 0 6px rgba(255, 209, 102, 0.25);
 }
 
+.slot.occupied.selectable {
+  cursor: pointer;
+  outline: 2.5px dashed rgba(255, 235, 160, 0.95);
+  outline-offset: -3px;
+}
+.slot.occupied.selectable:hover {
+  outline-style: solid;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+.slot.stacked {
+  border-left-color: rgba(255, 255, 255, 0.85);
+}
+.slot-count-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 7px;
+  pointer-events: none;
+}
+.shelf.compact .slot-count-badge {
+  font-size: 0.52rem;
+  padding: 2px 5px;
+}
+.legend-dot.stacked {
+  background: linear-gradient(90deg, #8f4a38, #a85a45);
+  box-shadow: 0 0 0 2px var(--bg-soft), 0 0 0 3.5px #a85a45;
+}
+
 /* Couleurs de dos de livre */
 .spine-0 { background: linear-gradient(90deg, #a85a45, #8f4a38); }
 .spine-1 { background: linear-gradient(90deg, #417a66, #35604f); }

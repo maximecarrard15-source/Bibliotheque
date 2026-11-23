@@ -360,14 +360,13 @@
           const isCurrent = book.libraryId === lib.id && (book.status === 'in');
           list.append(U.el('button', {
             type: 'button',
-            class: 'lib-pick-item' + (st.free === 0 ? ' disabled' : ''),
-            disabled: st.free === 0 || undefined,
-            onclick: () => { if (st.free > 0) stepChooseSlot(lib); },
+            class: 'lib-pick-item',
+            onclick: () => stepChooseSlot(lib),
           }, [
             U.el('span', { class: 'lib-pick-swatch theme-' + lib.theme }),
             U.el('span', { class: 'lib-pick-text' }, [
               U.el('strong', null, lib.name + (isCurrent ? '  ·  position actuelle' : '')),
-              U.el('small', null, lib.rows + ' × ' + lib.cols + ' cases — ' + U.plural(st.free, 'case libre', 'cases libres')),
+              U.el('small', null, lib.rows + ' × ' + lib.cols + ' cases — ' + U.plural(st.free, 'case libre', 'cases libres') + ' · empilement possible'),
             ]),
             U.el('span', { class: 'lib-pick-arrow', 'aria-hidden': 'true' }, '→'),
           ]));
@@ -383,7 +382,7 @@
       }
 
       function stepChooseSlot(lib) {
-        const statusLine = U.el('p', { class: 'field-hint slot-hint' }, 'Cliquez sur une case libre pour y ranger « ' + book.title + ' ».');
+        const statusLine = U.el('p', { class: 'field-hint slot-hint' }, 'Cliquez sur une case pour y ranger « ' + book.title + ' » (une case peut accueillir plusieurs livres).');
 
         const gridHost = U.el('div', { class: 'slot-picker-grid' });
         const panelFooter = actionsRow([
@@ -396,20 +395,19 @@
           gridHost.append(App.grid.render(lib, {
             selectable: true,
             currentBookId: book.status === 'in' ? book.id : null,
-            onSlotClick: (r, c) => {
+            onSlotClick: (r, c, count) => {
               const res = Sref.shelveBook(book.id, lib.id, r, c);
               if (res.ok) {
                 UI.closeModal();
                 const spot = U.lineCol(r, c);
-                UI.toast('« ' + book.title + ' » rangé dans « ' + lib.name + ' » — ' + spot + '.');
+                const shared = res.sharedWith > 0
+                  ? ' (case partagée avec ' + U.plural(res.sharedWith, 'autre livre', 'autres livres') + ')'
+                  : '';
+                UI.toast('« ' + book.title + ' » rangé dans « ' + lib.name + ' » — ' + spot + shared + '.');
               } else {
                 UI.toast(res.error || 'Placement impossible.', 'error');
                 drawGrid();
               }
-            },
-            onBookClick: (b) => {
-              if (b.id === book.id) return;
-              UI.toast('Case occupée par « ' + b.title + ' ». Choisissez une case libre.', 'error');
             },
           }));
           gridHost.append(App.grid.legend({ selectable: true }));
@@ -426,55 +424,83 @@
       }
     }
 
-    /* ---------- Case vide cliquée dans la vue bibliothèque ---------- */
+    /* ---------- Menu d'une case (vue bibliothèque) ---------- */
 
-    function pickEmptySlot(libId, row, col) {
+    function slotMenu(libId, row, col) {
       const Sref = S();
       const lib = Sref.getLibrary(libId);
       if (!lib) return;
+      const booksHere = Sref.booksAt(libId, row, col);
       const outBooks = Sref.listBooks({ status: 'out' }).sort((a, b) => a.title.localeCompare(b.title, 'fr'));
 
-      if (!outBooks.length) {
-        UI.openModal(U.el('div', { class: 'modal-panel confirm-panel' }, [
-          U.el('h3', null, U.lineCol(row, col) + ' — ' + lib.name),
-          U.el('p', { class: 'confirm-message' }, 'Cette case est libre, mais aucun livre n\'est actuellement sorti. Tout est en ordre !'),
-          actionsRow([U.el('button', { class: 'btn primary', type: 'button', onclick: () => UI.closeModal() }, 'Fermer')]),
+      const content = [];
+      const close = { c: null };
+
+      if (booksHere.length) {
+        const hereList = U.el('div', { class: 'lib-pick-list' });
+        booksHere.forEach((b) => {
+          hereList.append(U.el('button', {
+            type: 'button',
+            class: 'lib-pick-item',
+            onclick: () => { close.c(); bookCard(b.id); },
+          }, [
+            U.el('span', { class: 'lib-pick-icon' }, '📖'),
+            U.el('span', { class: 'lib-pick-text' }, [
+              U.el('strong', null, b.title),
+              U.el('small', null, b.author || 'Auteur inconnu'),
+            ]),
+          ]));
+        });
+        content.push(U.el('div', { class: 'field' }, [
+          U.el('span', { class: 'field-label' }, U.plural(booksHere.length, 'Livre dans cette case', 'Livres dans cette case') + ' — cliquez pour ouvrir sa fiche'),
+          hereList,
         ]));
-        return;
       }
 
-      const list = U.el('div', { class: 'lib-pick-list' });
-      outBooks.forEach((b) => {
-        list.append(U.el('button', {
-          type: 'button',
-          class: 'lib-pick-item',
-          onclick: () => {
-            const res = Sref.shelveBook(b.id, lib.id, row, col);
-            if (res.ok) {
-              UI.closeModal();
-              UI.toast('« ' + b.title + ' » rangé — ' + U.lineCol(row, col) + ', ' + lib.name + '.');
-            } else {
-              UI.toast(res.error || 'Placement impossible.', 'error');
-            }
-          },
-        }, [
-          U.el('span', { class: 'lib-pick-icon' }, '📥'),
-          U.el('span', { class: 'lib-pick-text' }, [
-            U.el('strong', null, b.title),
-            U.el('small', null, (b.author || 'Auteur inconnu') + (b.libraryId && Sref.getLibrary(b.libraryId) ? ' — précédemment : ' + U.lineCol(b.row, b.col) + ' (' + Sref.getLibrary(b.libraryId).name + ')' : '')),
-          ]),
-          U.el('span', { class: 'btn small primary' }, 'Ranger ici'),
+      if (outBooks.length) {
+        const outList = U.el('div', { class: 'lib-pick-list' });
+        outBooks.forEach((b) => {
+          const prevLib = b.libraryId && Sref.getLibrary(b.libraryId) ? Sref.getLibrary(b.libraryId).name : null;
+          outList.append(U.el('button', {
+            type: 'button',
+            class: 'lib-pick-item',
+            onclick: () => {
+              const res = Sref.shelveBook(b.id, lib.id, row, col);
+              if (res.ok) {
+                close.c();
+                const shared = res.sharedWith > 0 ? ' (case partagée)' : '';
+                UI.toast('« ' + b.title + ' » rangé — ' + U.lineCol(row, col) + ', ' + lib.name + shared + '.');
+              } else {
+                UI.toast(res.error || 'Placement impossible.', 'error');
+              }
+            },
+          }, [
+            U.el('span', { class: 'lib-pick-icon' }, '📥'),
+            U.el('span', { class: 'lib-pick-text' }, [
+              U.el('strong', null, b.title),
+              U.el('small', null, (b.author || 'Auteur inconnu') + (prevLib ? ' — précédemment : ' + U.lineCol(b.row, b.col) + ' (' + prevLib + ')' : '')),
+            ]),
+            U.el('span', { class: 'btn small primary' }, 'Ranger ici'),
+          ]));
+        });
+        content.push(U.el('div', { class: 'field' }, [
+          U.el('span', { class: 'field-label' }, 'Ranger un livre sorti dans cette case'),
+          outList,
         ]));
-      });
+      }
 
-      UI.openModal(U.el('div', { class: 'modal-panel form-panel' }, [
-        U.el('h3', null, 'Ranger un livre — ' + U.lineCol(row, col)),
-        U.el('p', { class: 'field-hint' }, 'Choisissez un livre sorti à placer dans cette case de « ' + lib.name + ' » :'),
-        list,
-        actionsRow([U.el('button', { class: 'btn ghost', type: 'button', onclick: () => UI.closeModal() }, 'Annuler')]),
-      ]));
+      if (!content.length) {
+        content.push(U.el('p', { class: 'confirm-message' }, 'Cette case est libre, mais aucun livre n\'est actuellement sorti. Tout est en ordre !'));
+      }
+
+      const panel = U.el('div', { class: 'modal-panel form-panel' }, [
+        U.el('h3', null, U.lineCol(row, col) + ' — ' + lib.name),
+        ...content,
+        actionsRow([U.el('button', { class: 'btn ghost', type: 'button', onclick: () => close.c() }, 'Fermer')]),
+      ]);
+      close.c = UI.openModal(panel, { label: 'Case ' + U.lineCol(row, col) });
     }
 
-    return { libraryForm, bookForm, bookCard, placeBook, pickEmptySlot, statusBadge, chip };
+    return { libraryForm, bookForm, bookCard, placeBook, slotMenu, statusBadge, chip };
   })();
 })();

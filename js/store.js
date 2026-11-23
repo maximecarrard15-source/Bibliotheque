@@ -121,14 +121,20 @@
       return state.books.filter((b) => b.status === 'in' && b.libraryId === libraryId);
     }
 
-    function bookAt(libraryId, row, col) {
-      return state.books.find(
+    function booksAt(libraryId, row, col) {
+      return state.books.filter(
         (b) => b.status === 'in' && b.libraryId === libraryId && b.row === row && b.col === col
-      ) || null;
+      );
     }
 
     function isSlotFree(libraryId, row, col) {
-      return !bookAt(libraryId, row, col);
+      return booksAt(libraryId, row, col).length === 0;
+    }
+
+    function occupiedSlots(libraryId) {
+      const slots = new Set();
+      for (const b of booksInLibrary(libraryId)) slots.add(b.row + ':' + b.col);
+      return slots.size;
     }
 
     function searchBooks(q) {
@@ -147,7 +153,7 @@
       const lib = getLibrary(libraryId);
       if (!lib) return { capacity: 0, occupied: 0, free: 0 };
       const capacity = lib.rows * lib.cols;
-      const occupied = booksInLibrary(libraryId).length;
+      const occupied = Math.min(occupiedSlots(libraryId), capacity);
       return { capacity, occupied, free: capacity - occupied };
     }
 
@@ -158,7 +164,7 @@
       let occupied = 0;
       for (const lib of state.libraries) {
         capacity += lib.rows * lib.cols;
-        occupied += booksInLibrary(lib.id).length;
+        occupied += Math.min(occupiedSlots(lib.id), lib.rows * lib.cols);
       }
       return {
         total: state.books.length,
@@ -311,17 +317,13 @@
       if (row == null || col == null || row < 1 || col < 1 || row > lib.rows || col > lib.cols) {
         return { ok: false, error: 'Emplacement hors limites.' };
       }
-      const occupant = bookAt(libraryId, row, col);
-      if (occupant && occupant.id !== id) {
-        return { ok: false, error: 'Cette case est déjà occupée par « ' + occupant.title + ' ».' };
-      }
       book.status = 'in';
       book.libraryId = libraryId;
       book.row = row;
       book.col = col;
       book.updatedAt = nowISO();
       save();
-      return { ok: true, book, library: lib };
+      return { ok: true, book, library: lib, sharedWith: booksAt(libraryId, row, col).length - 1 };
     }
 
     function moveBook(id, libraryId, row, col) {
@@ -371,8 +373,9 @@
       getBook,
       listBooks,
       booksInLibrary,
-      bookAt,
+      booksAt,
       isSlotFree,
+      occupiedSlots,
       searchBooks,
       libraryStats,
       globalStats,

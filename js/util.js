@@ -25,7 +25,14 @@
       }
       if (children != null) {
         if (!Array.isArray(children)) children = [children];
-        for (const child of children) {
+        const flat = [];
+        (function pushAll(arr) {
+          for (const child of arr) {
+            if (Array.isArray(child)) pushAll(child);
+            else flat.push(child);
+          }
+        })(children);
+        for (const child of flat) {
           if (child == null || child === false) continue;
           node.append(child.nodeType ? child : document.createTextNode(String(child)));
         }

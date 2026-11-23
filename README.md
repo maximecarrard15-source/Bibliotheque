@@ -30,7 +30,7 @@ python3 -m http.server 8000
 - **Case vide cliquable** dans la vue bibliothèque : liste des livres sortis à ranger directement dans cette case.
 - **Tableau de bord** : total, livres rangés, livres sortis, cases occupées/disponibles, aperçu de chaque bibliothèque, section « Livres sortis à ranger », dernières activités.
 - **Collection** en vue grille ou liste, filtres (genre, type, statut), tri, filtre texte.
-- **Garanties de cohérence** : un livre ne peut être rangé que dans une case libre ; une case = un livre ; un livre n'est que dans un seul emplacement à la fois ; les fonctions du store vérifient l'occupation avant chaque rangement.
+- **Empilement** : une même case peut accueillir autant de livres que vous voulez (badge « +N » sur la case, menu détaillé au clic). Mais un livre ne se trouve physiquement qu'à un seul emplacement à la fois ; les statistiques comptent les cases occupées (≥ 1 livre) et libres (0 livre).
 - Interface responsive (ordinateur, tablette, téléphone), animations discrètes, aucun rechargement de page (SPA à routage par ancre).
 
 ## Architecture
@@ -70,7 +70,7 @@ js/app.js               Routeur SPA + barre de recherche globale
 ```
 
 - `status` : `"in"` = dans la bibliothèque, `"out"` = sorti.
-- Un livre `in` a toujours `libraryId`, `row` et `col` renseignés, et une case ne peut contenir qu'un seul livre `in`.
+- Un livre `in` a toujours `libraryId`, `row` et `col` renseignés ; plusieurs livres `in` peuvent partager la même case (empilement).
 - Un livre sorti conserve son dernier emplacement (ou aucun s'il n'a jamais été rangé, ou si sa bibliothèque a été supprimée).
 
 ### Étendre l'application

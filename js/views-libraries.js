@@ -42,9 +42,11 @@
             U.el('small', { class: 'lib-sub' }, lib.rows + ' × ' + lib.cols + ' cases · ' + Sref.themeName(lib.theme)),
           ]),
         ]),
-        App.grid.render(lib, { compact: true, onBookClick: (b) => App.Modals.bookCard(b.id) }),
+        App.grid.render(lib, { compact: true, onBookClick: (b, books) => (books.length > 1
+          ? App.Modals.slotMenu(lib.id, b.row, b.col)
+          : App.Modals.bookCard(b.id)) }),
         U.el('div', { class: 'lib-card-foot' }, [
-          U.el('span', null, U.plural(st.occupied, 'livre rangé', 'livres rangés') + ' · ' + st.free + ' libre' + (st.free > 1 ? 's' : '')),
+          U.el('span', null, U.plural(App.Store.booksInLibrary(lib.id).length, 'livre rangé', 'livres rangés') + ' · ' + st.free + ' libre' + (st.free > 1 ? 's' : '')),
         ]),
         U.el('div', { class: 'occupancy-bar' }, [U.el('div', {
           class: 'occupancy-fill',
@@ -117,12 +119,14 @@
       ]),
     ]));
 
-    root.append(U.el('p', { class: 'hint-line' }, 'Cliquez sur un livre pour ouvrir sa fiche, ou sur une case libre pour y ranger un livre sorti.'));
+    root.append(U.el('p', { class: 'hint-line' }, 'Cliquez sur un casier pour voir les livres qui s\'y trouvent et/ou ranger un livre sorti — une même case peut accueillir plusieurs livres.'));
 
     root.append(U.el('div', { class: 'card shelf-card' }, [
       App.grid.render(lib, {
-        onBookClick: (b) => App.Modals.bookCard(b.id),
-        onEmptyClick: (r, c) => App.Modals.pickEmptySlot(lib.id, r, c),
+        onBookClick: (b, books) => (books.length > 1
+          ? App.Modals.slotMenu(lib.id, b.row, b.col)
+          : App.Modals.bookCard(b.id)),
+        onEmptyClick: (r, c) => App.Modals.slotMenu(lib.id, r, c),
       }),
       App.grid.legend(),
     ]));

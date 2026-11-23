@@ -30,7 +30,7 @@
       statCard('📚', 'Total de livres', String(stats.total), 'dans votre collection'),
       statCard('✅', 'Livres rangés', String(stats.inLibrary), 'présents en rayon'),
       statCard('📤', 'Livres sortis', String(stats.out), 'à ranger plus tard'),
-      statCard('🗄️', 'Cases occupées', stats.occupied + ' / ' + stats.capacity, U.plural(stats.available, 'case disponible', 'cases disponibles')),
+      statCard('🗄️', 'Cases occupées', stats.occupied + ' / ' + stats.capacity, U.plural(stats.available, 'case disponible', 'cases disponibles') + ' · empilement possible'),
     ]));
 
     if (!libraries.length && !stats.total) {
@@ -82,9 +82,11 @@
             ]),
             U.el('a', { class: 'btn ghost small', href: '#/bibliotheque/' + lib.id }, 'Gérer'),
           ]),
-          App.grid.render(lib, { compact: true, onBookClick: (b) => App.Modals.bookCard(b.id) }),
+          App.grid.render(lib, { compact: true, onBookClick: (b, books) => (books.length > 1
+            ? App.Modals.slotMenu(lib.id, b.row, b.col)
+            : App.Modals.bookCard(b.id)) }),
           U.el('div', { class: 'lib-card-foot' }, [
-            U.el('span', null, U.plural(st.occupied, 'livre rangé', 'livres rangés')),
+            U.el('span', null, U.plural(App.Store.booksInLibrary(lib.id).length, 'livre rangé', 'livres rangés')),
             U.el('span', { class: 'muted' }, st.free + ' case' + (st.free > 1 ? 's' : '') + ' libre' + (st.free > 1 ? 's' : '')),
           ]),
           U.el('div', { class: 'occupancy-bar' }, [U.el('div', {
